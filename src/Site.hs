@@ -14,30 +14,39 @@ import Data.Time.Format (formatTime, defaultTimeLocale)
 import Data.Time (Day)
 
 data Site = Site
-  { slug  :: FilePath
-  , name  :: T.Text
-  , email :: Maybe T.Text
-  , links :: [T.Text]
+  { slug  :: FilePath      -- output HTML file name
+  , name  :: T.Text        -- site name
+  , email :: Maybe T.Text  -- optional email
+  , links :: [T.Text]      -- social links
   }
 
--- | Generate SEO-friendly index.html with links to all articles
+-- | Generate SEO-friendly index.html with articles and social links
 genArticleMenu :: Site -> [A.Article] -> IO ()
 genArticleMenu site articles = do
     createDirectoryIfMissing True "main"
 
-    -- Build meta description from first few articles
+    -- Meta description from first few article excerpts
     let metaDescription = T.take 160 $ T.intercalate " "
           [ maybe "" stripHtml (A.excerpt a) | a <- take 5 articles ]
 
+        -- Article list items
         articleLinks = T.concat
           [ "<li><article>\n"
-          <> "<h2><a href=\"../articles/" <> T.pack (A.slug a) <> "\">"
-          <> stripHtml (A.title a) <> "</a></h2>\n"
-          <> "<p>" <> maybe "" stripHtml (A.excerpt a) <> "</p>\n"
-          <> "<time datetime=\"" <> dateText (A.date a) <> "\">" <> dateText (A.date a) <> "</time>\n"
-          <> "</article></li>\n"
+            <> "<h2><a href=\"../articles/" <> T.pack (A.slug a) <> "\">"
+            <> stripHtml (A.title a) <> "</a></h2>\n"
+            <> "<time datetime=\"" <> dateText (A.date a) <> "\">"
+            <> dateText (A.date a) <> "</time>\n"
+            <> "<p class=\"excerpt\">" <> maybe "" stripHtml (A.excerpt a) <> "</p>\n"
+            <> "</article></li>\n"
           | a <- articles
           ]
+        -- Social links in a <ul> if any
+        socialLinksHtml = if null (links site)
+                          then ""
+                          else "<nav aria-label=\"Social Media\">\n<ul class=\"social-links\">\n"
+                               <> T.concat [ "<li><a href=\"" <> link <> "\">" <> link <> "</a></li>\n"
+                                           | link <- links site ]
+                               <> "</ul>\n</nav>\n"
 
         htmlTemplate = T.concat
           [ "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n"
@@ -50,10 +59,12 @@ genArticleMenu site articles = do
           , "<link rel=\"stylesheet\" href=\"style.css\">\n"
           , "</head>\n<body>\n"
           , "<header><h1>", name site, "</h1></header>\n"
+          , socialLinksHtml
           , "<main>\n<section>\n<h2>Articles</h2>\n<ul>\n"
           , articleLinks
           , "</ul>\n</section>\n</main>\n"
-          , "<footer><p>&copy; 2025 Fugux.</p></footer>\n"
+          , "<footer>\n<p>&copy; 2025 Fugux.</p>\n"
+          , "</footer>\n"
           , "</body>\n</html>"
           ]
 

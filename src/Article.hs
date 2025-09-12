@@ -36,6 +36,10 @@ saveArticleHTML currentDate path = runIO $ do
           , Ext_tex_math_double_backslash
           , Ext_backtick_code_blocks
           , Ext_fenced_code_blocks
+          , Ext_fenced_code_attributes     -- <- important!
+          , Ext_header_attributes          -- headings {#id .class}
+          , Ext_bracketed_spans            -- [text]{.class}
+          , Ext_fenced_divs                -- ::: {.class}
           ]
 
 
@@ -43,7 +47,7 @@ saveArticleHTML currentDate path = runIO $ do
         writerExts = foldr enableExtension (writerExtensions def) baseExts
 
     let readerOpts = def { readerExtensions = readerExts }
-        writerOpts = def { writerExtensions = writerExts, writerHTMLMathMethod = MathML, writerHighlightStyle = Just espresso }
+        writerOpts = def { writerExtensions = writerExts, writerHTMLMathMethod = MathML }
 
     -- Read Markdown
     -- content <- liftIO $ TIO.readFile path
@@ -52,7 +56,7 @@ saveArticleHTML currentDate path = runIO $ do
 
     
     -- Extract metadata
-    titleHtml <- case query getFirstHeading doc of
+    titleHtml <- case query getFirstH1 doc of
         (block:_) -> writeHtml5String def (Pandoc nullMeta [block])
         []        -> return "Untitled"
 
@@ -64,7 +68,7 @@ saveArticleHTML currentDate path = runIO $ do
     articleHtml <- writeHtml5String writerOpts doc
 
     -- Plain title
-    let plainTitle = T.strip $ T.filter (/= '\n') (T.concat $ T.words $ T.replace "<h1>" "" $ T.replace "</h1>" "" titleHtml)
+    let plainTitle = T.concat $ query getStrH1 doc
 
     -- Build meta description for excerpt
     let metaDescription = maybe "" (T.replace "<br />" "" . T.replace "<p>" "" . T.replace "</p>" "" . T.strip) excerptHtml
@@ -84,7 +88,7 @@ saveArticleHTML currentDate path = runIO $ do
           , "</head>\n<body>\n"
           , "<header>", titleHtml, "</header>\n"
           , "<main>\n<article>\n"
-          , cleanParaAndAllocateCodeInPre $ removeH1 articleHtml
+          , removeH1 articleHtml
           , "\n</article>\n</main>\n"
           , "<footer><p>&copy; 2025 Fugux.</p></footer>\n"
           , "</body>\n</html>"
@@ -109,13 +113,26 @@ saveArticleHTML currentDate path = runIO $ do
         }
 
 -- Helpers
-getFirstHeading :: Block -> [Block]
-getFirstHeading h@(Header _ _ _) = [h]
-getFirstHeading _                = []
+getFirstH1 :: Block -> [Block]
+getFirstH1 h@(Header 1 _ _) = [h]
+getFirstH1 _                = []
 
 getFirstParagraph :: Block -> [Block]
 getFirstParagraph p@(Para _) = [p]
 getFirstParagraph _          = []
+
+getStrH1 :: Block -> [T.Text]
+getStrH1 (Header 1 _ inlines) = [T.concat $ map go inlines]
+  where
+    go :: Inline -> T.Text
+    go (Str t)      = t
+    go Space        = " "
+    go SoftBreak    = " "
+    go LineBreak    = " "
+    go (Code _ t)   = t
+    go _            = ""
+getStrH1 _ = []
+
 
 removeH1 :: T.Text -> T.Text
 removeH1 html = case parse parser "" html of
@@ -132,19 +149,3 @@ removeH1 html = case parse parser "" html of
       manyTill anyChar (try $ string "</h1>")
       return T.empty
 
-cleanParaAndAllocateCodeInPre :: T.Text -> T.Text
-cleanParaAndAllocateCodeInPre html = case parse parser "" html of
-                           Left _      -> html
-                           Right result -> result
-  where
-    parser :: Parser T.Text
-    parser = T.concat <$> many (try codeBlock <|> fmap T.singleton anyChar)
-
-    codeBlock :: Parser T.Text
-    codeBlock = do
-      optional $ try $ string "<p>"
-      try $ string "<code>"
-      content <- manyTill anyChar (try $ string "</code>")
-      _ <- string "</pre>" <|> pure ""  
-      optional $ try $ string "</p>"
-      return $ "<pre><code>" <> T.pack content <> "</code></pre>"
