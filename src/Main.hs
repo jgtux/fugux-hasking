@@ -15,21 +15,20 @@ main = do
     -- Site metadata
     let site = SITE.Site
           { SITE.slug  = "index.html"
+          , SITE.stylePath = ""
+          , SITE.dir   = ""
           , SITE.name  = "fugux"
           , SITE.email = Just "jg@fugu.mail"
           , SITE.links = [ "https://github.com/jgtux"
                          ]
           }
 
-    -- Get today's date
-    currentDate <- Time.utctDay <$> Time.getCurrentTime
-
     -- Collect Markdown files from "content/"
     files <- listDirectory "content"
     let mdFiles = [ "content" </> f | f <- files, takeExtension f == ".md" ]
 
     -- Convert all Markdown → Article
-    articlesE <- mapM (ARTCL.saveArticleHTML currentDate) mdFiles
+    articlesE <- mapM ARTCL.saveArticleHTML mdFiles
 
     -- Filter successful conversions
     let articles = [a | Right a <- articlesE]

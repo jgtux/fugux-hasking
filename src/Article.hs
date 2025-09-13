@@ -14,21 +14,19 @@ import Text.Parsec.Text (Parser)
 import Control.Monad.IO.Class (liftIO)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
-import Data.Time (Day)
+import qualified Data.Time as TM (getCurrentTime, UTCTime)
 import System.FilePath (takeFileName, replaceExtension, (</>))
-import System.Directory (createDirectoryIfMissing, copyFile)
+import System.Directory (createDirectoryIfMissing)
 
 data Article = Article
-  { slug    :: FilePath
-  , title   :: T.Text
-  , date    :: Day
-  , excerpt :: Maybe T.Text
+  { slug      :: FilePath
+  , title     :: T.Text
+  , utcTime   :: TM.UTCTime
+  , excerpt   :: Maybe T.Text
   } deriving (Show)
 
-saveArticleHTML :: Day -> FilePath -> IO (Either PandocError Article)
-saveArticleHTML currentDate path = runIO $ do
-    -- Opts
-
+saveArticleHTML :: FilePath -> IO (Either PandocError Article)
+saveArticleHTML path = runIO $ do
     let baseExts =
           [ Ext_hard_line_breaks
           , Ext_fancy_lists
@@ -36,26 +34,19 @@ saveArticleHTML currentDate path = runIO $ do
           , Ext_tex_math_double_backslash
           , Ext_backtick_code_blocks
           , Ext_fenced_code_blocks
-          , Ext_fenced_code_attributes     -- <- important!
-          , Ext_header_attributes          -- headings {#id .class}
-          , Ext_bracketed_spans            -- [text]{.class}
-          , Ext_fenced_divs                -- ::: {.class}
+          , Ext_fenced_code_attributes
+          , Ext_header_attributes
+          , Ext_bracketed_spans
+          , Ext_fenced_divs
           ]
 
-
-    let readerExts = foldr enableExtension (readerExtensions def) baseExts
+        readerExts = foldr enableExtension (readerExtensions def) baseExts
         writerExts = foldr enableExtension (writerExtensions def) baseExts
-
-    let readerOpts = def { readerExtensions = readerExts }
+        readerOpts = def { readerExtensions = readerExts }
         writerOpts = def { writerExtensions = writerExts, writerHTMLMathMethod = MathML }
 
-    -- Read Markdown
-    -- content <- liftIO $ TIO.readFile path
-    -- doc <- readMarkdown readerOpts content
     doc <- readMarkdown readerOpts =<< (liftIO $ TIO.readFile path)
 
-    
-    -- Extract metadata
     titleHtml <- case query getFirstH1 doc of
         (block:_) -> writeHtml5String def (Pandoc nullMeta [block])
         []        -> return "Untitled"
@@ -64,55 +55,45 @@ saveArticleHTML currentDate path = runIO $ do
         (block:_) -> Just <$> writeHtml5String def (Pandoc nullMeta [block])
         []        -> return Nothing
 
-    -- Render body HTML
     articleHtml <- writeHtml5String writerOpts doc
 
-    -- Plain title
     let plainTitle = T.concat $ query getStrH1 doc
+        metaDescription = maybe "" (T.replace "\n" "" . T.replace "<br>" " " . T.replace "<br />" " " . T.replace "<p>" "" . T.replace "</p>" "" . T.strip) excerptHtml
 
-    -- Build meta description for excerpt
-    let metaDescription = maybe "" (T.replace "<br />" "" . T.replace "<p>" "" . T.replace "</p>" "" . T.strip) excerptHtml
-
-    
-    
-    -- Prepare full HTML manually
-    let htmlTemplate = T.concat
-          [ "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n"
-          , "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
-          , "<title>", plainTitle, "</title>\n"
-          , "<meta name=\"description\" content=\"", metaDescription, "\">\n"
-          , "<meta property=\"og:title\" content=\"", plainTitle, "\">\n"
-          , "<meta property=\"og:description\" content=\"", metaDescription, "\">\n"
-          , "<meta property=\"og:type\" content=\"article\">\n"
-          , "<link rel=\"stylesheet\" href=\"../main/style.css\">\n"
-          , "</head>\n<body>\n"
-          , "<header>", titleHtml, "</header>\n"
-          , "<main>\n<article>\n"
-          , removeH1 articleHtml
-          , "\n</article>\n</main>\n"
-          , "<footer><p>&copy; 2025 Fugux.</p></footer>\n"
-          , "</body>\n</html>"
-          ]
-
-    -- Prepare output path
-    let baseName = replaceExtension (takeFileName path) "html"
+        htmlTemplate :: T.Text
+        htmlTemplate = 
+          "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n"
+          <> "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
+          <> "<title>" <> plainTitle <> "</title>\n"
+          <> "<meta name=\"description\" content=\"" <> metaDescription <> "\">\n"
+          <> "<meta property=\"og:title\" content=\"" <> plainTitle <> "\">\n"
+          <> "<meta property=\"og:description\" content=\"" <> metaDescription <> "\">\n"
+          <> "<meta property=\"og:type\" content=\"article\">\n"
+          <> "<link rel=\"stylesheet\" href=\"../main/style.css\">\n"
+          <> "</head>\n<body>\n"
+          <> "<header>" <> titleHtml <> "</header>\n"
+          <> "<main>\n<article>\n"
+          <> removeH1 articleHtml
+          <> "\n</article>\n</main>\n"
+          <> "<footer><p>&copy; 2025 Fugux.</p></footer>\n"
+          <> "</body>\n</html>"
+          
+        baseName = replaceExtension (takeFileName path) "html"
         outDir   = "articles"
         outPath  = outDir </> baseName
 
     liftIO $ createDirectoryIfMissing True outDir
-    -- Optionally copy style.css to articles/ if you want local copy
-    -- liftIO $ copyFile "main/style.css" (outDir </> "style.css")
     liftIO $ TIO.writeFile outPath htmlTemplate
 
-    -- Return Article metadata
+    utcNow   <- liftIO TM.getCurrentTime
+
     return $ Article
-        { slug    = baseName
-        , title   = titleHtml
-        , date    = currentDate
-        , excerpt = excerptHtml
+        { slug      = baseName
+        , title     = titleHtml
+        , utcTime   = utcNow
+        , excerpt   = excerptHtml
         }
 
--- Helpers
 getFirstH1 :: Block -> [Block]
 getFirstH1 h@(Header 1 _ _) = [h]
 getFirstH1 _                = []
@@ -124,15 +105,13 @@ getFirstParagraph _          = []
 getStrH1 :: Block -> [T.Text]
 getStrH1 (Header 1 _ inlines) = [T.concat $ map go inlines]
   where
-    go :: Inline -> T.Text
-    go (Str t)      = t
-    go Space        = " "
-    go SoftBreak    = " "
-    go LineBreak    = " "
-    go (Code _ t)   = t
-    go _            = ""
+    go (Str t)    = t
+    go Space      = " "
+    go SoftBreak  = " "
+    go LineBreak  = " "
+    go (Code _ t) = t
+    go _          = ""
 getStrH1 _ = []
-
 
 removeH1 :: T.Text -> T.Text
 removeH1 html = case parse parser "" html of
@@ -148,4 +127,3 @@ removeH1 html = case parse parser "" html of
       manyTill anyChar (char '>')
       manyTill anyChar (try $ string "</h1>")
       return T.empty
-
