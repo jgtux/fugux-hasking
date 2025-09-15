@@ -1,8 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Site
-  ( Site(..)
-  , genArticleMenu
+  ( genArticleMenu
   -- , appendArticle
   ) where
 
@@ -10,45 +9,38 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import System.FilePath ((</>))
 import System.Directory (createDirectoryIfMissing)
-import qualified Article as A (Article(..))
-import Data.Time (UTCTime, Day, formatTime, defaultTimeLocale) 
-
-data Site = Site
-  { slug  :: FilePath      -- output HTML file name
-  , stylePath :: FilePath  -- main HTML directory
-  , dir   :: FilePath      -- directory 
-  , name  :: T.Text        -- site name
-  , email :: Maybe T.Text  -- optional email
-  , links :: [T.Text]      -- social links
-  }
+import Data.Time (UTCTime, formatTime, defaultTimeLocale) 
+import Types (Site(..), Article(..))
+import GlobalHelpers (formatLinks, formatEmail)
 
 --  Generate SEO-friendly index.html with articles and social links
-genArticleMenu :: Site -> [A.Article] -> IO ()
+genArticleMenu :: Site -> [Article] -> IO ()
 genArticleMenu site articles = do
     createDirectoryIfMissing True "main"
 
     -- Meta description from first few article excerpts
     let metaDescription = T.take 160 $ T.intercalate " "
-          [ maybe "" stripHtml (A.excerpt a) | a <- take 5 articles ]
+          [ maybe "" stripHtml (excerpt a) | a <- take 5 articles ]
 
         -- Article list items
         articleLinks =
            [ "<li><article>\n"
-             <> "<h2><a href=\"../articles/" <> T.pack (A.slug a) <> "\">"
-             <> stripHtml (A.title a) <> "</a></h2>\n"
-             <> "<time datetime=\"" <> isoDateTime (A.utcTime a) <> "\">"
-             <> dateUtcText (A.utcTime a) <> " " <> utcTimeText (A.utcTime a) <> "</time>\n"
-             <> "<p class=\"excerpt\">" <> maybe "" stripHtml (A.excerpt a) <> "</p>\n"
+             <> "<h2><a href=\"../articles/" <> T.pack (articleSlug a) <> "\">"
+             <> stripHtml (title a) <> "</a></h2>\n"
+             <> "<time datetime=\"" <> isoDateTime (utcTime a) <> "\">"
+             <> dateUtcText (utcTime a) <> " " <> utcTimeText (utcTime a) <> "</time>\n"
+             <> "<p class=\"excerpt\">" <> maybe "" stripHtml (excerpt a) <> "</p>\n"
              <> "</article></li>\n"
            | a <- articles
            ]
         -- Social links in a <ul> if any
         socialLinksHtml = if null (links site)
                           then ""
-                          else "<nav aria-label=\"Social Media\">\n<ul class=\"social-links\">\n"
-                               <> T.concat [ "<li><a href=\"" <> link <> "\">" <> link <> "</a></li>\n"
-                                           | link <- links site ]
-                               <> "</ul>\n</nav>\n"
+                          else "<address>"
+                               <> "João G.<br>"
+                               <> formatEmail (email site)
+                               <> formatLinks (links site)
+                               <> "<br>Open to freelance. Contact me.</address>"
 
         htmlTemplate = 
            "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n"
@@ -65,14 +57,14 @@ genArticleMenu site articles = do
            <> "<main>\n<section>\n<h2>Articles</h2>\n<ul>\n"
            <> T.concat articleLinks
            <> "</ul>\n</section>\n</main>\n"
-           <> "<footer>\n<p>&copy; 2025 Fugux.</p>\n"
+           <> "<footer>\n<address> </address><p>&copy; 2025 Fugux.</p>\n"
            <> "</footer>\n"
            <> "</body>\n</html>"
            
     
     TIO.writeFile ("main" </> slug site) htmlTemplate
 
--- appendArticles :: Site -> [A.Articles] -> IO ()
+-- appendArticles :: Site -> [Article] -> IO ()
 
 -- Helpers
 

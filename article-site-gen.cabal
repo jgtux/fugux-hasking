@@ -21,3 +21,5 @@ executable article-site-gen
   default-language:    Haskell2010
   other-modules:       Article
                       , Site
+                      , GlobalHelpers
+                      , Types

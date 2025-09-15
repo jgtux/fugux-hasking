@@ -6,21 +6,23 @@ import qualified Data.Text as T
 import qualified Data.Time as Time
 import System.Directory (listDirectory)
 import System.FilePath ((</>), takeExtension)
-
-import qualified Article as ARTCL
 import qualified Site as SITE
+import qualified Article as ARTCL
+import Types (Site(..), Link(..))
 
 main :: IO ()
 main = do
     -- Site metadata
-    let site = SITE.Site
-          { SITE.slug  = "index.html"
-          , SITE.stylePath = ""
-          , SITE.dir   = ""
-          , SITE.name  = "fugux"
-          , SITE.email = Just "jg@fugu.mail"
-          , SITE.links = [ "https://github.com/jgtux"
-                         ]
+    let site = Site
+          { slug      = "index.html"
+          , stylePath = ""
+          , dir       = ""
+          , name      = "fugux"
+          , email     = Just "jg@fugu.mail"
+          , links     =
+            [ Link "GitHub"   "https://github.com/jgtux"
+            , Link "LinkedIn" "https://www.linkedin.com/in/jv-guedes-unixer"
+            ]
           }
 
     -- Collect Markdown files from "content/"
@@ -28,7 +30,7 @@ main = do
     let mdFiles = [ "content" </> f | f <- files, takeExtension f == ".md" ]
 
     -- Convert all Markdown → Article
-    articlesE <- mapM ARTCL.saveArticleHTML mdFiles
+    articlesE <- mapM (\mdFile -> ARTCL.saveArticleHTML site mdFile) mdFiles
 
     -- Filter successful conversions
     let articles = [a | Right a <- articlesE]

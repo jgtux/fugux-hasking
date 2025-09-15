@@ -17,16 +17,12 @@ import qualified Data.Text.IO as TIO
 import qualified Data.Time as TM (getCurrentTime, UTCTime)
 import System.FilePath (takeFileName, replaceExtension, (</>))
 import System.Directory (createDirectoryIfMissing)
+import Types (Article(..), Site(..), Link(..))
+import GlobalHelpers (formatLinks, formatEmail)
 
-data Article = Article
-  { slug      :: FilePath
-  , title     :: T.Text
-  , utcTime   :: TM.UTCTime
-  , excerpt   :: Maybe T.Text
-  } deriving (Show)
 
-saveArticleHTML :: FilePath -> IO (Either PandocError Article)
-saveArticleHTML path = runIO $ do
+saveArticleHTML :: Site -> FilePath -> IO (Either PandocError Article)
+saveArticleHTML site path = runIO $ do
     let baseExts =
           [ Ext_hard_line_breaks
           , Ext_fancy_lists
@@ -75,7 +71,7 @@ saveArticleHTML path = runIO $ do
           <> "<main>\n<article>\n"
           <> removeH1 articleHtml
           <> "\n</article>\n</main>\n"
-          <> "<footer><p>&copy; 2025 Fugux.</p></footer>\n"
+          <> "<footer>\n<address>" <> "João G. — " <> formatEmail (email site) <> formatLinks (links site) <> "</address>\n<p>&copy; 2025 Fugux.</p>\n</footer>\n"
           <> "</body>\n</html>"
           
         baseName = replaceExtension (takeFileName path) "html"
@@ -88,7 +84,7 @@ saveArticleHTML path = runIO $ do
     utcNow   <- liftIO TM.getCurrentTime
 
     return $ Article
-        { slug      = baseName
+        { articleSlug      = baseName
         , title     = titleHtml
         , utcTime   = utcNow
         , excerpt   = excerptHtml
