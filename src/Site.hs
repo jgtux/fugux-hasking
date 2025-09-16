@@ -7,6 +7,8 @@ module Site
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
+import Data.List (sortOn)
+import Data.Ord  (Down(..))
 import System.FilePath ((</>))
 import System.Directory (createDirectoryIfMissing)
 import Data.Time (UTCTime, formatTime, defaultTimeLocale) 
@@ -19,9 +21,18 @@ genArticleMenu site articles = do
     createDirectoryIfMissing True "main"
 
     -- Meta description from first few article excerpts
-    let metaDescription = T.take 160 $ T.intercalate " "
-          [ maybe "" stripHtml (excerpt a) | a <- take 5 articles ]
-
+    let metaDescription =
+          T.take 160 $
+          T.intercalate " "
+          [ maybe "" (T.strip
+                      . T.replace "\n" ""
+                      . T.replace "<br>" " "
+                      . T.replace "<br />" " "
+                      . T.replace "<p>" ""
+                      . T.replace "</p>" ""
+                     ) (excerpt a)
+          | a <- articles
+          ]    
         -- Article list items
         articleLinks =
            [ "<li><article>\n"
@@ -29,9 +40,8 @@ genArticleMenu site articles = do
              <> stripHtml (title a) <> "</a></h2>\n"
              <> "<time datetime=\"" <> isoDateTime (utcTime a) <> "\">"
              <> dateUtcText (utcTime a) <> " " <> utcTimeText (utcTime a) <> "</time>\n"
-             <> "<p class=\"excerpt\">" <> maybe "" stripHtml (excerpt a) <> "</p>\n"
              <> "</article></li>\n"
-           | a <- articles
+           | a <- sortOn (Down . utcTime) articles
            ]
         -- Social links in a <ul> if any
         socialLinksHtml = if null (links site)
@@ -40,7 +50,7 @@ genArticleMenu site articles = do
                                <> "João G.<br>"
                                <> formatEmail (email site)
                                <> formatLinks (links site)
-                               <> "<br>Open to freelance. Contact me.</address>"
+                               <> "<br>Have a request? Contact me.</address>"
 
         htmlTemplate = 
            "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n"

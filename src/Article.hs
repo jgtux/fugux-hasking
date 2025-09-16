@@ -14,9 +14,9 @@ import Text.Parsec.Text (Parser)
 import Control.Monad.IO.Class (liftIO)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
-import qualified Data.Time as TM (getCurrentTime, UTCTime)
+import qualified Data.Time (UTCTime)
 import System.FilePath (takeFileName, replaceExtension, (</>))
-import System.Directory (createDirectoryIfMissing)
+import qualified System.Directory as DIR (createDirectoryIfMissing, getModificationTime)
 import Types (Article(..), Site(..), Link(..))
 import GlobalHelpers (formatLinks, formatEmail)
 
@@ -78,15 +78,15 @@ saveArticleHTML site path = runIO $ do
         outDir   = "articles"
         outPath  = outDir </> baseName
 
-    liftIO $ createDirectoryIfMissing True outDir
+    liftIO $ DIR.createDirectoryIfMissing True outDir
     liftIO $ TIO.writeFile outPath htmlTemplate
 
-    utcNow   <- liftIO TM.getCurrentTime
+    utcLastUpdated  <- liftIO $ DIR.getModificationTime path
 
     return $ Article
         { articleSlug      = baseName
         , title     = titleHtml
-        , utcTime   = utcNow
+        , utcTime   = utcLastUpdated
         , excerpt   = excerptHtml
         }
 
