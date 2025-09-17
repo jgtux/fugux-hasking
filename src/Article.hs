@@ -75,7 +75,7 @@ saveArticleHTML site path = runIO $ do
           <> "</body>\n</html>"
           
         baseName = replaceExtension (takeFileName path) "html"
-        outDir   = "articles"
+        outDir   = (dir site) </> "articles"
         outPath  = outDir </> baseName
 
     liftIO $ DIR.createDirectoryIfMissing True outDir

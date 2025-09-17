@@ -2,7 +2,6 @@
 
 module Site
   ( genArticleMenu
-  -- , appendArticle
   ) where
 
 import qualified Data.Text as T
@@ -10,15 +9,24 @@ import qualified Data.Text.IO as TIO
 import Data.List (sortOn)
 import Data.Ord  (Down(..))
 import System.FilePath ((</>))
-import System.Directory (createDirectoryIfMissing)
+import System.Directory (createDirectoryIfMissing, doesFileExist)
 import Data.Time (UTCTime, formatTime, defaultTimeLocale) 
 import Types (Site(..), Article(..))
 import GlobalHelpers (formatLinks, formatEmail)
 
---  Generate SEO-friendly index.html with articles and social links
+-- Generate SEO-friendly index.html with articles and social links
 genArticleMenu :: Site -> [Article] -> IO ()
 genArticleMenu site articles = do
-    createDirectoryIfMissing True "main"
+    -- Ensure 'main' folder exists inside site dir
+    let mainDir = dir site </> "main"
+    createDirectoryIfMissing True mainDir
+
+    -- Ensure empty style.css exists inside 'main'
+    let cssPath = mainDir </> "style.css"
+    cssExists <- doesFileExist cssPath
+    if not cssExists
+       then TIO.writeFile cssPath "" 
+       else return ()
 
     -- Meta description from first few article excerpts
     let metaDescription =
@@ -33,7 +41,8 @@ genArticleMenu site articles = do
                      ) (excerpt a)
           | a <- articles
           ]    
-        -- Article list items
+
+        -- Article list items, sorted by utcTime descending
         articleLinks =
            [ "<li><article>\n"
              <> "<h2><a href=\"../articles/" <> T.pack (articleSlug a) <> "\">"
@@ -43,14 +52,14 @@ genArticleMenu site articles = do
              <> "</article></li>\n"
            | a <- sortOn (Down . utcTime) articles
            ]
-        -- Social links in a <ul> if any
-        socialLinksHtml = if null (links site)
-                          then ""
-                          else "<address>"
-                               <> "João G.<br>"
-                               <> formatEmail (email site)
-                               <> formatLinks (links site)
-                               <> "<br>Have a request? Contact me.</address>"
+
+        -- Social links
+        socialLinksHtml
+          | null (links site) && email site == Nothing = ""
+          | otherwise = "<address>"
+                    <> formatEmail (email site)
+                    <> formatLinks (links site)
+                    <> "<br>Have a request? Contact me.</address>"
 
         htmlTemplate = 
            "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n"
@@ -70,11 +79,9 @@ genArticleMenu site articles = do
            <> "<footer>\n<address> </address><p>&copy; 2025 Fugux.</p>\n"
            <> "</footer>\n"
            <> "</body>\n</html>"
-           
-    
-    TIO.writeFile ("main" </> slug site) htmlTemplate
 
--- appendArticles :: Site -> [Article] -> IO ()
+    TIO.writeFile (mainDir </> slug site) htmlTemplate
+
 
 -- Helpers
 

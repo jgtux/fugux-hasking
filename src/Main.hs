@@ -15,8 +15,7 @@ main = do
     -- Site metadata
     let site = Site
           { slug      = "index.html"
-          , stylePath = ""
-          , dir       = ""
+          , dir       = "/home/wizardfag/my-web-site"
           , name      = "fugux"
           , email     = Just "jg@fugu.mail"
           , links     =

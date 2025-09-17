@@ -16,7 +16,6 @@ data Link = Link
   
 data Site = Site
   { slug  :: FilePath      -- output HTML file name
-  , stylePath :: FilePath  -- main HTML directory
   , dir   :: FilePath      -- directory 
   , name  :: T.Text        -- site name
   , email :: Maybe T.Text  -- optional email
@@ -29,3 +28,4 @@ data Article = Article
   , utcTime   :: TM.UTCTime
   , excerpt   :: Maybe T.Text
   } 
+
