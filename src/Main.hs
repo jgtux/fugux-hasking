@@ -16,8 +16,8 @@ main = do
     let site = Site
           { slug      = "index.html"
           , dir       = "/home/wizardfag/my-web-site"
-          , name      = "fugux"
-          , email     = Just "jg@fugu.mail"
+          , name      = "fugu.cafe"
+          , email     = Nothing  --Just "jg@fugu.cafe"
           , links     =
             [ Link "GitHub"   "https://github.com/jgtux"
             , Link "LinkedIn" "https://www.linkedin.com/in/jv-guedes-unixer"

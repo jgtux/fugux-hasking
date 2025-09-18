@@ -54,8 +54,13 @@ saveArticleHTML site path = runIO $ do
     articleHtml <- writeHtml5String writerOpts doc
 
     let plainTitle = T.concat $ query getStrH1 doc
-        metaDescription = maybe "" (T.replace "\n" "" . T.replace "<br>" " " . T.replace "<br />" " " . T.replace "<p>" "" . T.replace "</p>" "" . T.strip) excerptHtml
-
+    
+        metaDescription = maybe "" (\t ->
+                                      let withoutP = T.drop 3 (T.take (T.length t - 4) t)  -- remove <p> and </p>
+                                          cleaned  = T.concatMap (\c -> if c == '>' || c == '<' then " " else T.singleton c) withoutP
+                                          truncated = T.take 160 $ T.strip cleaned
+                                      in T.replace "\"" "\\\"" truncated  -- escape all double quotes
+                                   ) excerptHtml
         htmlTemplate :: T.Text
         htmlTemplate = 
           "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n"
@@ -89,6 +94,7 @@ saveArticleHTML site path = runIO $ do
         , utcTime   = utcLastUpdated
         , excerpt   = excerptHtml
         }
+
 
 getFirstH1 :: Block -> [Block]
 getFirstH1 h@(Header 1 _ _) = [h]
