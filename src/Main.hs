@@ -22,6 +22,7 @@ main = do
             [ Link "GitHub"   "https://github.com/jgtux"
             , Link "LinkedIn" "https://www.linkedin.com/in/jv-guedes-unixer"
             ]
+          , cvSlug   = Just "curriculo_.html"
           }
 
     -- Collect Markdown files from "content/"
@@ -37,4 +38,4 @@ main = do
     -- Generate index.html
     SITE.genArticleMenu site articles
 
-    putStrLn "✅ Site generated in ./main and ./articles"
+    putStrLn "Site generated in ./main and ./articles!"

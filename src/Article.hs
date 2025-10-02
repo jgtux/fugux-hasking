@@ -70,13 +70,14 @@ saveArticleHTML site path = runIO $ do
           <> "<meta property=\"og:title\" content=\"" <> plainTitle <> "\">\n"
           <> "<meta property=\"og:description\" content=\"" <> metaDescription <> "\">\n"
           <> "<meta property=\"og:type\" content=\"article\">\n"
-          <> "<link rel=\"stylesheet\" href=\"../main/style.css\">\n"
+         <> "<link rel=\"stylesheet\" href=\"../main/style.css\">\n"
           <> "</head>\n<body>\n"
           <> "<header>" <> titleHtml <> "</header>\n"
+          <> "<nav><a href=\"../main\" class=\"back-button\">&larr; Back to Main Page</a></nav>\n"
           <> "<main>\n<article>\n"
           <> removeH1 articleHtml
           <> "\n</article>\n</main>\n"
-          <> "<footer>\n<address>" <> "João G. — " <> formatEmail (email site) <> formatLinks (links site) <> "</address>\n<p>&copy; 2025 Fugux.</p>\n</footer>\n"
+          <> "<footer>\n<address>" <> "João G. — " <> formatEmail (email site) <> formatLinks (links site) <> "</address>\n<p>&copy; 2025 fugu.cafe</p>\n</footer>\n"
           <> "</body>\n</html>"
           
         baseName = replaceExtension (takeFileName path) "html"

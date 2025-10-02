@@ -12,7 +12,7 @@ import System.FilePath ((</>))
 import System.Directory (createDirectoryIfMissing, doesFileExist)
 import Data.Time (UTCTime, formatTime, defaultTimeLocale) 
 import Types (Site(..), Article(..))
-import GlobalHelpers (formatLinks, formatEmail)
+import GlobalHelpers (formatCv, formatLinks, formatEmail)
 
 -- Generate SEO-friendly index.html with articles and social links
 genArticleMenu :: Site -> [Article] -> IO ()
@@ -20,6 +20,10 @@ genArticleMenu site articles = do
     -- Ensure 'main' folder exists inside site dir
     let mainDir = dir site </> "main"
     createDirectoryIfMissing True mainDir
+
+    -- Ensure 'cv' folder exists inside site dir
+    let cvDir = dir site </> "cv"
+    createDirectoryIfMissing True cvDir
 
     -- Ensure empty style.css exists inside 'main'
     let cssPath = mainDir </> "style.css"
@@ -59,6 +63,7 @@ genArticleMenu site articles = do
           | otherwise = "<address>"
                     <> formatEmail (email site)
                     <> formatLinks (links site)
+                    <> formatCv (cvSlug site) 
                     <> "<br>Have a request? Contact me.</address>"
 
         htmlTemplate = 
@@ -76,7 +81,7 @@ genArticleMenu site articles = do
            <> "<main>\n<section>\n<h2>Articles</h2>\n<ul>\n"
            <> T.concat articleLinks
            <> "</ul>\n</section>\n</main>\n"
-           <> "<footer>\n<address> </address><p>&copy; 2025 Fugux.</p>\n"
+           <> "<footer>\n<address> </address><p>&copy; 2025 fugu.cafe</p>\n"
            <> "</footer>\n"
            <> "</body>\n</html>"
 

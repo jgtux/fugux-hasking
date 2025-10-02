@@ -20,6 +20,7 @@ data Site = Site
   , name  :: T.Text        -- site name
   , email :: Maybe T.Text  -- optional email
   , links :: [Link] -- social media name and link refering to it
+  , cvSlug :: Maybe FilePath -- curriculum vitae optional
   }
 
 data Article = Article
